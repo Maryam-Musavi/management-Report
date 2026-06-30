@@ -11,7 +11,7 @@ import logging
 VERSION: Final[str] = "1.0"
 TEMPERATURE: Final[float] = 0.1
 
-MODEL_NAME: Final[str] = "gemma3:1b"
+MODEL_NAME: Final[str] = "qwen2.5:7b"
 BASE_URL_OFFLINE: Final[str] = "http://127.0.0.1:11434"
 
 logger = logging.getLogger(name=__name__)

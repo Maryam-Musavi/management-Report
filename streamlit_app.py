@@ -19,7 +19,7 @@ import ollama_utility
 # =========================
 # Config (Editable)
 # =========================
-MODEL_NAME = "gemma3:1b"
+MODEL_NAME = "qwen2.5:7b"
 BASE_URL = "http://127.0.0.1:11434"
 TEMPERATURE = 0.1
 
