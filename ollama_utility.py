@@ -42,12 +42,15 @@ def chat(
     logger.debug(msg=f"Ollama '{model_name}' chat started...")
 
     response: ChatResponse = client.chat(
-        think=think,
-        stream=False,
-        model=model_name,
-        messages=messages,
-        options={"temperature": temperature},
-    )
+    think=think,
+    stream=False,
+    model=model_name,
+    messages=messages,
+    options={
+        "temperature": temperature,
+        "num_ctx": 16384  # <--- اضافه کردن این خط، پنجره دید مدل را به ۱۶ هزار توکن افزایش می‌دهد
+    },
+)
 
     logger.debug(msg=f"Ollama '{model_name}' chat finished.")
 
