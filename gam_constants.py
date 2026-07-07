@@ -72,9 +72,41 @@ Read the [Python pre-computation] block in the user message — it contains EXAC
    report that clearly: e.g. "برای این شخص هیچ اقدامی در سیستم ثبت نشده است."
 4. If pre-computation provides an action text, quote it in full.
 5. Phone numbers are NOT stored in this table.
-6. For actions analysis: summarise patterns (who has actions, who doesn't, key outcomes).
-7. For goods analysis: report each category with exact count and names.
-8. Be concise and direct. No preamble like "based on the data...".
+6. Be concise and direct. No preamble like "based on the data...".
+
+## List formatting — MANDATORY
+Whenever your answer includes 2 or more names (or any itemised list), you MUST print
+each item on its own separate line, using a leading dash "- ". NEVER put multiple
+names on the same line separated by spaces or commas.
+
+Correct:
+- آقای تنزیلی
+- آقای آزمون
+- آقای رمضانی
+
+Incorrect (never do this):
+آقای تنزیلی آقای آزمون آقای رمضانی
+
+The pre-computation data is already formatted this way (one name per line) —
+simply preserve that structure in your reply; do not merge lines together.
+
+## Deep table-analysis guidance (when asked for "تحلیل کلی" / "گزارش" / "بررسی")
+The pre-computation for these questions includes a "Thematic pattern analysis" section
+covering, with EXACT Python-verified counts and full quoted action text:
+  - اوراق گام منتشر شده (دارای مبلغ اوراق)   → customers whose bonds are already issued
+  - ابراز نارضایتی نسبت به نرخ تنزیل           → unhappy about the discount/haircut rate
+  - ابراز نارضایتی به‌طور کلی                  → generally dissatisfied customers
+  - منصرف شده یا معامله را لغو کرده‌اند         → withdrew or cancelled
+  - هنوز مبالغ را به اوراق تبدیل نکرده‌اند      → funds not yet converted to bonds
+  - مشکل دستگاه پوز / کارت رفاهی                → POS/welfare-card device issues
+  - آمادگی برای انجام معامله                    → ready to transact
+  - در انتظار تثبیت قیمت / نوسانات ارز          → waiting due to currency fluctuation
+
+When the user asks for a general analysis, you MUST weave these thematic findings
+into your answer (not just the raw type/province counts) — e.g. state exactly how
+many customers already have bonds released, how many are dissatisfied and why,
+and what the main types of complaints are, using the exact names/quotes given.
+Use bullet lists (one item per line) for each theme.
 
 ## Table columns (reference)
 - ردیف              : row number

@@ -9,9 +9,10 @@ from typing import Optional
 
 import logging
 
-VERSION: Final[str] = "2.4"
-TEMPERATURE: Final[float] = 0.1   # دقت حداکثری برای تحلیل داده
-NUM_CTX: Final[int] = 32768        # پنجره context — باید از 2048 پیش‌فرض بزرگتر باشد
+VERSION: Final[str] = "2.5"
+TEMPERATURE: Final[float]  = 0.1     # دقت حداکثری برای تحلیل داده
+NUM_CTX: Final[int]        = 32768   # پنجره context — باید از 2048 پیش‌فرض بزرگتر باشد
+NUM_PREDICT: Final[int]    = 4096    # حداکثر توکن خروجی — پیش‌فرض Ollama (~128) باعث قطع پاسخ‌های تحلیلی می‌شد
 
 MODEL_NAME: Final[str] = "llama3.1:8b"
 BASE_URL_OFFLINE: Final[str] = "http://127.0.0.1:11434"
@@ -52,7 +53,8 @@ def chat(
             messages=messages,
             options={
                 "temperature": temperature,
-                "num_ctx": NUM_CTX,      # افزایش context window
+                "num_ctx": NUM_CTX,          # افزایش context window
+                "num_predict": NUM_PREDICT,  # جلوگیری از قطع‌شدن پاسخ‌های طولانی
             },
         )
 

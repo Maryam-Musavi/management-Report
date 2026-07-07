@@ -91,38 +91,100 @@ def _rows_to_context(subset: pd.DataFrame) -> str:
     return '\n'.join(lines)
 
 
-# Goods normalisation map  (canonical → aliases found in data)
-_GOODS_MAP: dict[str, list[str]] = {
-    'لوازم خانگی':       ['لوازم خانگی', 'اوازم خانگی', 'لوازم خانگی - دیپوینت',
-                           'لوازم الکترونیکی', 'اسپیلیت', 'الماس بلورین ایرانیان'],
-    'کالای دیجیتال':     ['کالای دیجیتال'],
-    'مبل و مبلمان':      ['کارخانه تولید مبل'],
-    'تجهیزات کشاورزی':  ['تجهیزات کشاورزی'],
-    'موتورسیکلت':        ['شرکت موتورسیکلت'],
-    'دیپوینت':           ['دیپوینت'],
-}
+import re as _re
 
 
 def _compute_goods_stats(df: pd.DataFrame) -> dict[str, list[str]]:
     """
-    Normalise the goods column and return {category: [names]}.
-    Handles combined values like 'کالای دیجیتال، لوازم خانگی'.
+    Split the raw goods column into individual categories WITHOUT assuming
+    any grouping beyond what the data itself expresses.
+
+    Only two safe transformations are applied:
+      1. Fix the obvious typo 'اوازم خانگی' → 'لوازم خانگی'
+      2. Split combined values that list multiple goods for one customer,
+         e.g. 'کالای دیجیتال، لوازم خانگی' or 'لوازم خانگی - دیپوینت'
+         (split on '،' or '-')
+
+    Distinct product/brand names (e.g. 'اسپیلیت', 'الماس بلورین ایرانیان',
+    'لوازم الکترونیکی') are kept as their OWN separate category — they are
+    NOT folded into 'لوازم خانگی', since that would be an unverified
+    assumption about what those specific goods are.
+
+    Returns:
+        {category_name: [customer names]}, ordered by frequency (desc)
+        when iterated by the caller.
     """
-    result: dict[str, list[str]] = {k: [] for k in _GOODS_MAP}
+    name_col, goods_col = 'نام متقاضی', 'نوع کالای درخواستی'
+    result: dict[str, list[str]] = {}
+
     for _, row in df.iterrows():
-        raw  = str(row.get('نوع کالای درخواستی', ''))
-        name = str(row.get('نام متقاضی', ''))
-        for canonical, aliases in _GOODS_MAP.items():
-            if any(a.lower() in raw.lower() for a in aliases):
-                if name not in result[canonical]:
-                    result[canonical].append(name)
-    return result
+        raw  = str(row.get(goods_col, '')).strip()
+        name = str(row.get(name_col, '')).strip()
+        if not raw:
+            continue
+        raw_norm = raw.replace('اوازم', 'لوازم')  # fix typo only
+        parts = [p.strip() for p in _re.split(r'[،\-]', raw_norm) if p.strip()]
+        for p in parts:
+            result.setdefault(p, [])
+            if name not in result[p]:
+                result[p].append(name)
+
+    # Sort categories by popularity (most requested first)
+    return dict(sorted(result.items(), key=lambda kv: -len(kv[1])))
+
+
+
+# Pattern groups for deeper action-column analysis.
+# Each pattern maps a Persian label -> list of substrings, ALL of which
+# (mode='and') or ANY of which (mode='or') must appear in the action text.
+_ACTION_PATTERNS: list[tuple[str, list[str], str]] = [
+    ('اوراق گام منتشر شده (دارای مبلغ اوراق)',        ['منتشر شده', 'منتشر شد'], 'or'),
+    ('ابراز نارضایتی نسبت به نرخ تنزیل',                ['نرخ تنزیل'],             'or'),
+    ('ابراز نارضایتی به\u200cطور کلی',                   ['نارضایتی', 'ناراضی'],   'or'),
+    ('منصرف شده یا معامله را لغو کرده\u200cاند',         ['منصرف', 'لغو'],          'or'),
+    # AND-pattern: both "تبدیل" and "نکرده" must appear (handles wording
+    # variations like "تبدیل به اوراق گام نکرده اند")
+    ('هنوز مبالغ را به اوراق تبدیل نکرده\u200cاند',      ['تبدیل', 'نکرده'],        'and'),
+    ('مشکل دستگاه پوز / کارت رفاهی',                     ['پوز'],                   'or'),
+    ('آمادگی برای انجام معامله',                          ['آمادگی دارند', 'آمادگی دارد'], 'or'),
+    ('در انتظار تثبیت قیمت / نوسانات ارز',               ['نوسانات نرخ ارز', 'تثبیت قیمت'], 'or'),
+]
+
+
+def _compute_pattern_matches(df: pd.DataFrame) -> str:
+    """
+    Scan the action column for recurring themes (bond publication,
+    discount-rate complaints, general dissatisfaction, etc.) and
+    return exact counts + names + full quoted text for each theme.
+
+    Each pattern is Python-verified (exact substring/AND matching),
+    so the LLM never has to detect these itself — it only phrases
+    the already-computed findings in Persian.
+    """
+    action_col = 'اقدامات انجام شده'
+    name_col   = 'نام متقاضی'
+
+    lines = ['=== Thematic pattern analysis (exact counts + quotes from Python) ===']
+    for label, keywords, mode in _ACTION_PATTERNS:
+        if mode == 'and':
+            mask = df[action_col].apply(lambda x, kws=keywords: all(k in x for k in kws))
+        else:
+            mask = df[action_col].apply(lambda x, kws=keywords: any(k in x for k in kws))
+        matched = df[mask]
+        lines.append(f'\n{label}: exactly {len(matched)} نفر')
+        for _, row in matched.iterrows():
+            lines.append(f'  - {row[name_col]}: {row[action_col]}')
+        if matched.empty:
+            lines.append('  (هیچکس)')
+    return '\n'.join(lines)
 
 
 def _compute_actions_summary(df: pd.DataFrame) -> str:
     """
-    Produce a structured English summary of the actions column for the LLM.
-    Includes: who has actions, who doesn't, and the full action text for each.
+    Produce a structured summary of the actions column for the LLM:
+    who has actions, who doesn't, thematic patterns (bond releases,
+    dissatisfaction, cancellations, etc.), and the full action text
+    for each record (so the LLM can quote specifics accurately).
     """
     action_col = 'اقدامات انجام شده'
     name_col   = 'نام متقاضی'
@@ -133,13 +195,17 @@ def _compute_actions_summary(df: pd.DataFrame) -> str:
         action = str(row.get(action_col, '')).strip()
         (done if action else empty).append({'name': name, 'action': action})
 
+    no_action_block = '\n'.join(f'  - {n}' for n in (x['name'] for x in empty))
+
     lines = [
         f'Total records: {len(df)}',
         f'Records WITH action logged: {len(done)}',
         f'Records WITHOUT any action: {len(empty)}',
-        f'No-action names: {", ".join(x["name"] for x in empty)}',
+        f'No-action names:\n{no_action_block}',
         '',
-        '=== Full action log ===',
+        _compute_pattern_matches(df),
+        '',
+        '=== Full action log (use this to quote specific customer situations) ===',
     ]
     for item in done:
         lines.append(f'  [{item["name"]}]: {item["action"]}')
@@ -190,11 +256,11 @@ def preprocess_query(user_prompt: str, df: pd.DataFrame) -> tuple[str, str]:
         if prov and prov in user_prompt:
             subset = df[df[province_col] == prov]
             names  = subset[name_col].tolist()
+            names_block = '\n'.join(f'  - {n}' for n in names)
             enriched = (
                 f'{user_prompt}\n\n'
-                f"[Python pre-computation] Province '{prov}': "
-                f"exactly {len(subset)} records. "
-                f"Names: {', '.join(names)}"
+                f"[Python pre-computation] Province '{prov}': exactly {len(subset)} records.\n"
+                f"Names (already one per line — keep this format in your answer):\n{names_block}"
             )
             return enriched, _rows_to_context(subset)
 
@@ -202,11 +268,13 @@ def preprocess_query(user_prompt: str, df: pd.DataFrame) -> tuple[str, str]:
     if any(k in user_prompt for k in ['حقیقی', 'حقوقی', 'نوع متقاضی']):
         real_df  = df[df[type_col] == 'متقاضی حقیقی']
         legal_df = df[df[type_col] == 'متقاضی حقوقی']
+        real_block  = '\n'.join(f'  - {n}' for n in real_df[name_col].tolist())
+        legal_block = '\n'.join(f'  - {n}' for n in legal_df[name_col].tolist())
         enriched = (
             f'{user_prompt}\n\n'
             f"[Python pre-computation] "
-            f"'متقاضی حقیقی': exactly {len(real_df)} — {', '.join(real_df[name_col].tolist())}. "
-            f"'متقاضی حقوقی': exactly {len(legal_df)} — {', '.join(legal_df[name_col].tolist())}."
+            f"'متقاضی حقیقی': exactly {len(real_df)}:\n{real_block}\n"
+            f"'متقاضی حقوقی': exactly {len(legal_df)}:\n{legal_block}"
         )
         return enriched, _rows_to_context(pd.concat([real_df, legal_df]))
 
@@ -223,14 +291,34 @@ def preprocess_query(user_prompt: str, df: pd.DataFrame) -> tuple[str, str]:
         return enriched, '\n'.join(lines)
 
     # ── 5. Bank ──────────────────────────────────────
-    if any(k in user_prompt for k in ['بانک', 'شعبه']):
-        subset = df[df[type_col] == 'شعبه بانک']
+    # NOTE: "بانک" is ambiguous across two different columns:
+    #   (a) نوع درخواست کننده == 'شعبه بانک'  → applicant's own type IS a bank branch (rare, only 2 records)
+    #   (b) نحوه معرفی contains 'بانک'         → customer was INTRODUCED/referred by the bank (much more common)
+    # A question like "چند نفر از بانک تماس گرفته‌اند؟" almost always means (b).
+    # We compute BOTH and present (b) as the primary answer, (a) as a secondary note,
+    # so the LLM never has to guess which column the user meant.
+    if any(k in user_prompt for k in ['بانک', 'شعبه بانک']):
+        intro_col = 'نحوه معرفی'
+        by_channel = df[df[intro_col].str.contains('بانک', na=False)]
+        by_type    = df[df[type_col] == 'شعبه بانک']
+
+        channel_block = '\n'.join(f'  - {n}' for n in by_channel[name_col].tolist())
+        type_block    = '\n'.join(f'  - {n}' for n in by_type[name_col].tolist())
+
         enriched = (
             f'{user_prompt}\n\n'
-            f"[Python pre-computation] 'شعبه بانک': exactly {len(subset)}. "
-            f"Names: {', '.join(subset[name_col].tolist())}"
+            f"[Python pre-computation] Two distinct interpretations were checked:\n\n"
+            f"(A) PRIMARY — customers introduced/referred BY THE BANK "
+            f"(column 'نحوه معرفی' contains 'بانک'): exactly {len(by_channel)} customers:\n"
+            f"{channel_block}\n\n"
+            f"(B) SECONDARY — customers whose own applicant type IS 'شعبه بانک' "
+            f"(a bank branch itself, column 'نوع درخواست کننده'): exactly {len(by_type)} customers:\n"
+            f"{type_block}\n\n"
+            f"Answer using interpretation (A) as the main number, since 'از بانک تماس گرفته‌اند' "
+            f"naturally means 'introduced by the bank'. Only mention (B) if the user's wording "
+            f"specifically says 'شعبه بانک'."
         )
-        return enriched, _rows_to_context(subset)
+        return enriched, channel_block + '\n' + type_block
 
     # ── 6. Supplier ──────────────────────────────────
     if any(k in user_prompt for k in ['تامین کننده', 'تامین‌کننده']):
@@ -247,13 +335,19 @@ def preprocess_query(user_prompt: str, df: pd.DataFrame) -> tuple[str, str]:
                                        'چه کالا', 'کدام کالا', 'بیشتر', 'مبل']):
         stats    = _compute_goods_stats(df)
         no_goods = df[df[goods_col] == ''][name_col].tolist()
-        lines    = [f'  {cat}: {len(names)} نفر — {", ".join(names)}'
-                    for cat, names in stats.items() if names]
+        lines = []
+        for cat, names in stats.items():
+            if not names:
+                continue
+            lines.append(f'{cat}: exactly {len(names)} نفر')
+            lines.extend(f'  - {n}' for n in names)
+        lines.append(f'بدون کالای مشخص: exactly {len(no_goods)} نفر')
+        lines.extend(f'  - {n}' for n in no_goods)
         enriched = (
             f'{user_prompt}\n\n'
-            f'[Python pre-computation] Goods breakdown:\n'
+            f'[Python pre-computation] Goods breakdown (each name is already on its own line — '
+            f'preserve this one-name-per-line format in your answer, do NOT merge into a single line):\n'
             + '\n'.join(lines)
-            + f'\n  (بدون کالای مشخص: {len(no_goods)} نفر — {", ".join(no_goods)})'
         )
         return enriched, '\n'.join(lines)
 
