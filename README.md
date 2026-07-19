@@ -41,7 +41,7 @@ gam_chatbot/
 
 ```bash
 pip install -r requirements.txt
-ollama pull gemma3:1b
+ollama pull 3:1b
 ollama serve
 streamlit run ./streamlit_app.py
 ```

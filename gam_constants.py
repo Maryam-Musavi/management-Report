@@ -10,7 +10,7 @@ from typing import Final
 # Model Settings
 # ══════════════════════════════════════════════════
 
-MODEL_NAME: Final[str] = "gemma3:1b"
+MODEL_NAME: Final[str] = "llama3.1:8b"
 SHOW_TOKEN_INFO: Final[bool] = True
 
 # ══════════════════════════════════════════════════
@@ -91,23 +91,40 @@ The pre-computation for these questions starts with an "OVERALL SNAPSHOT" block 
 "MOST-REQUESTED GOODS" and "DOMINANT THEMES IN CUSTOMER ACTIONS" — all with EXACT
 Python-verified counts AND percentages. This is your PRIMARY material.
 
-**Structure your answer as a high-level narrative, NOT a case-by-case list:**
+**Structure your answer as a high-level narrative, NOT a case-by-case list, NOT a
+run-on "شامل X، Y، Z ... می‌شود" listing sentence.** Use short, complete, connected
+sentences the way a human analyst would write a summary — each stat gets its own
+clear sentence, joined naturally with "همچنین" / "در حالی که" / "و" where it reads
+smoothly.
+
 1. Start with 1-2 sentences on overall coverage (e.g. "از ۵۰ مشتری، ۳۸ نفر (۷۶٪) دارای
-   اقدام ثبت‌شده هستند").
-2. State the dominant/most common patterns using their exact percentages, phrased
-   naturally: "اکثر مشتریانی که کالا مشخص کرده‌اند (X از Y نفر، Z٪) متقاضی ... هستند"
-   or "شایع‌ترین موضوع در اقدامات ثبت‌شده ... است که Z٪ از مشتریان دارای اقدام را
-   شامل می‌شود".
-3. Cover the top 2-4 dominant themes from "DOMINANT THEMES IN CUSTOMER ACTIONS" —
-   these already come pre-sorted from most to least frequent, so lead with the
-   first ones. Skip themes with 0 matches.
-4. Only mention individual customer names as brief supporting examples (e.g. "مانند
+   اقدام ثبت‌شده هستند و تنها ۲۲٪ بدون اقدام باقی مانده‌اند").
+2. Cover the top 2-4 dominant themes from "DOMINANT THEMES IN CUSTOMER ACTIONS" —
+   these already come pre-sorted from most to least frequent. Give EACH theme its
+   own short sentence with its percentage, e.g.:
+   "در بین مشتریانی که اقدام کرده‌اند، ۱۴٪ مربوط به اوراق گام منتشر‌شده هستند. همچنین
+   ۱۰٪ هنوز مبالغ را به اوراق تبدیل نکرده‌اند و ۷٪ ابراز نارضایتی کلی داشته‌اند."
+   Do NOT also restate the same theme a second time as "% of all customers" right
+   after — pick ONE base (usually "% of customers who have an action") and stick
+   to it for that theme; repeating the same fact in two different percentage
+   frames back-to-back reads as redundant, not insightful.
+3. Only mention individual customer names as brief supporting examples (e.g. "مانند
    آقای X و آقای Y") — do NOT produce a long itemised list of every single name in
    every category. The detailed per-theme name lists further down the
    pre-computation are for follow-up questions, not for this summary answer.
-5. Never claim a pattern is "اکثر" (majority) unless its percentage in the data
-   actually exceeds 50%; for smaller percentages use accurate language like
-   "بخشی از مشتریان (Z٪)" or "شایع‌ترین موضوع (اما نه اکثریت)".
+
+**"اکثر" (majority) — HARD RULE, no exceptions:**
+Only ever attach the word "اکثر" (or "اکثریت") to a percentage that is itself
+ABOVE 50%. This applies per-sentence — check the number immediately next to
+"اکثر" every time, not just the overall theme.
+- ✅ Correct: "اکثر مشتریان (۷۸٪) اقدام کرده‌اند" — 78% > 50%, "اکثر" is valid here.
+- ❌ WRONG — never write this: "اکثر مشتریانی که اقدام کرده‌اند (۱۴٪ از کسانی که
+  اقدام دارند) مربوط به اوراق گام منتشر‌شده هستند" — 14% is a small minority, not
+  a majority. Calling it "اکثر" is a factual contradiction within the same clause.
+- For any theme under 50%, just state the percentage plainly with no "اکثر" label
+  at all: "۱۴٪ مربوط به اوراق گام منتشر‌شده هستند." Do not soften this with
+  alternate majority-sounding words either ("عمده", "غالب") unless the number
+  truly exceeds 50%.
 
 If the user instead asks a SPECIFIC/narrow question (e.g. "چه کسانی نرخ تنزیل بالا
 را مشکل دانسته‌اند؟"), you MAY use the detailed itemised list with full quotes from

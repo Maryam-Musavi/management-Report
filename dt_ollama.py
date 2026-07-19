@@ -14,7 +14,7 @@ TEMPERATURE: Final[float]  = 0.1     # دقت حداکثری برای تحلیل
 NUM_CTX: Final[int]        = 16384   # پنجره context — بدترین حالت واقعی پروژه (خلاصه گزارش کامل) حدود ۶۰۰۰ توکن است؛ ۱۶۳۸۴ حاشیه امنیت کافی می‌دهد بدون فشار غیرضروری به RAM
 NUM_PREDICT: Final[int]    = 4096    # حداکثر توکن خروجی — پیش‌فرض Ollama (~128) باعث قطع پاسخ‌های تحلیلی می‌شد
 
-MODEL_NAME: Final[str] = "gemma3:1b"
+MODEL_NAME: Final[str] = "llama3.1:8b"
 BASE_URL_OFFLINE: Final[str] = "http://127.0.0.1:11434"
 
 logger = logging.getLogger(name=__name__)
